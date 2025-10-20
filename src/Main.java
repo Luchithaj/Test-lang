@@ -1,7 +1,12 @@
 public class Main {
     public static void main(String[] args) throws Exception {
-        ExprLexer lexer = new ExprLexer(new java.io.FileReader("input.txt"));
-        ExprParser parser = new ExprParser(lexer);
-        System.out.println("Result: " + parser.parse().value);
+        if (args.length == 0) {
+            System.err.println("Usage: java Main <input.test>");
+            System.exit(1);
+        }
+        
+        StandaloneLexer lexer = new StandaloneLexer(new java.io.FileReader(args[0]));
+        SimpleParser parser = new SimpleParser(lexer);
+        parser.parse();
     }
 }
