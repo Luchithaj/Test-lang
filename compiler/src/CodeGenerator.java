@@ -54,6 +54,9 @@ public class CodeGenerator {
     }
     
     private static void generateTestMethod(PrintWriter writer, TestBlock testBlock, List<Variable> variables) {
+        // Validate test block
+        validateTestBlock(testBlock);
+        
         writer.println("  @Test");
         writer.println("  void test_" + testBlock.name + "() throws Exception {");
         
@@ -70,6 +73,28 @@ public class CodeGenerator {
         
         writer.println("  }");
         writer.println();
+    }
+    
+    private static void validateTestBlock(TestBlock testBlock) {
+        boolean hasRequest = false;
+        int assertionCount = 0;
+        
+        for (Statement stmt : testBlock.statements) {
+            if (stmt instanceof HttpRequest) {
+                hasRequest = true;
+            } else if (stmt instanceof RequestWithAssertions) {
+                hasRequest = true;
+                assertionCount += ((RequestWithAssertions) stmt).assertions.size();
+            }
+        }
+        
+        if (!hasRequest) {
+            throw new RuntimeException("Test '" + testBlock.name + "' must have at least one HTTP request");
+        }
+        
+        if (assertionCount < 2) {
+            throw new RuntimeException("Test '" + testBlock.name + "' must have at least 2 assertions");
+        }
     }
     
     private static void generateHttpRequest(PrintWriter writer, HttpRequest request, List<Variable> variables) {

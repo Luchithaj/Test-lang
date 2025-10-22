@@ -1,8 +1,8 @@
-# TestLang++ - HTTP API Testing DSL
+# TestLang++ - HTTP API Testing DSL - L.T Jayawardena (IT23631724)
 
 A simple DSL I built for testing HTTP APIs. It compiles to JUnit 5 tests so you can run them normally.
 
-## What's in here
+## Folder Structure 
 
 ```
 Test-lang/
@@ -104,11 +104,13 @@ test GetUser {
 This was built for SE2062 - TestLang++ (Java) - Backend API Testing DSL.
 
 Features implemented:
-- Custom lexer and parser (no JFlex/CUP, wrote my own)
+- JFlex + CUP-based lexer and parser
 - AST for representing parsed code
 - Code generation to JUnit 5
 - Variable substitution in URLs and request bodies
 - HTTP client integration
 - Spring Boot backend for testing
+- Test validation (1 request + 2+ assertions per test)
+- Proper error handling with line numbers
 
 The generated tests show up in a nice JUnit tree view with green checkmarks and everything.
