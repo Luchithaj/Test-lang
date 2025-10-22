@@ -48,7 +48,6 @@ import java_cup.runtime.*;
     // Strings with escape sequences
     \"([^\"\\]|\\.)*\" { 
         String str = yytext();
-        // Remove quotes and handle escape sequences
         str = str.substring(1, str.length() - 1);
         str = str.replace("\\\"", "\"").replace("\\\\", "\\");
         return symbol(sym.STRING, str);

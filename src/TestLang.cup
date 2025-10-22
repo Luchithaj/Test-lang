@@ -1,10 +1,14 @@
 import java_cup.runtime.*;
+import java.util.*;
 
 parser code {:
     public static void main(String[] args) throws Exception {
         TestLangLexer lexer = new TestLangLexer(new java.io.FileReader(args[0]));
         TestLangParser parser = new TestLangParser(lexer);
-        parser.parse();
+        TestFile result = (TestFile) parser.parse().value;
+        
+        System.out.println("Parsing complete. Generating JUnit code...");
+        CodeGenerator.generate(result);
     }
 :};
 
@@ -17,87 +21,205 @@ terminal Integer NUMBER;
 
 // Non-terminal symbols
 non terminal TestFile testFile;
+non terminal ConfigBlock configBlock;
+non terminal List<Variable> variables;
+non terminal Variable variable;
+non terminal List<TestBlock> testBlocks;
+non terminal TestBlock testBlock;
+non terminal List<Statement> statements;
+non terminal Statement statement;
+non terminal HttpRequest httpRequest;
+non terminal RequestBlock requestBlock;
+non terminal List<Header> headers;
+non terminal Header header;
+non terminal List<Assertion> assertions;
+non terminal Assertion assertion;
+non terminal String pathOrUrl;
+non terminal String value;
 
 // Grammar rules
-testFile ::= /* empty */
+testFile ::= configBlock:config variables:vars testBlocks:tests
             {:
-                System.out.println("Parsing complete. Generating JUnit code...");
-                generateTest();
+                RESULT = new TestFile(config, vars, tests);
+            :}
+          | variables:vars testBlocks:tests
+            {:
+                RESULT = new TestFile(null, vars, tests);
             :}
           ;
 
-action_code {:
-    private static void generateTest() {
-        try {
-            PrintWriter writer = new PrintWriter("GeneratedTests.java");
-            
-            writer.println("import org.junit.jupiter.api.*;");
-            writer.println("import static org.junit.jupiter.api.Assertions.*;");
-            writer.println("import java.net.http.*;");
-            writer.println("import java.net.*;");
-            writer.println("import java.time.Duration;");
-            writer.println("import java.nio.charset.StandardCharsets;");
-            writer.println("import java.util.*;");
-            writer.println();
-            writer.println("public class GeneratedTests {");
-            writer.println("  static String BASE = \"http://localhost:8080\";");
-            writer.println("  static Map<String,String> DEFAULT_HEADERS = new HashMap<>();");
-            writer.println("  static HttpClient client;");
-            writer.println();
-            writer.println("  @BeforeAll");
-            writer.println("  static void setup() {");
-            writer.println("    client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();");
-            writer.println("    DEFAULT_HEADERS.put(\"Content-Type\",\"application/json\");");
-            writer.println("  }");
-            writer.println();
-            writer.println("  @Test");
-            writer.println("  void test_Login() throws Exception {");
-            writer.println("    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + \"/api/login\"))");
-            writer.println("      .timeout(Duration.ofSeconds(10))");
-            writer.println("      .POST(HttpRequest.BodyPublishers.ofString(\"{ \\\"username\\\": \\\"admin\\\", \\\"password\\\": \\\"1234\\\" }\"));");
-            writer.println("    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());");
-            writer.println("    HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));");
-            writer.println();
-            writer.println("    assertEquals(200, resp.statusCode());");
-            writer.println("    assertTrue(resp.headers().firstValue(\"Content-Type\").orElse(\"\").contains(\"json\"));");
-            writer.println("    assertTrue(resp.body().contains(\"\\\"token\\\":\"));");
-            writer.println("  }");
-            writer.println();
-            writer.println("  @Test");
-            writer.println("  void test_GetUser() throws Exception {");
-            writer.println("    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + \"/api/users/42\"))");
-            writer.println("      .timeout(Duration.ofSeconds(10))");
-            writer.println("      .GET();");
-            writer.println("    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());");
-            writer.println("    HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));");
-            writer.println();
-            writer.println("    assertEquals(200, resp.statusCode());");
-            writer.println("    assertTrue(resp.body().contains(\"\\\"id\\\": 42\"));");
-            writer.println("  }");
-            writer.println();
-            writer.println("  @Test");
-            writer.println("  void test_UpdateUser() throws Exception {");
-            writer.println("    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + \"/api/users/42\"))");
-            writer.println("      .timeout(Duration.ofSeconds(10))");
-            writer.println("      .PUT(HttpRequest.BodyPublishers.ofString(\"{ \\\"role\\\": \\\"ADMIN\\\" }\"));");
-            writer.println("    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());");
-            writer.println("    b.header(\"Content-Type\", \"application/json\");");
-            writer.println("    HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));");
-            writer.println();
-            writer.println("    assertEquals(200, resp.statusCode());");
-            writer.println("    assertEquals(\"TestLangDemo\", resp.headers().firstValue(\"X-App\").orElse(\"\"));");
-            writer.println("    assertTrue(resp.headers().firstValue(\"Content-Type\").orElse(\"\").contains(\"json\"));");
-            writer.println("    assertTrue(resp.body().contains(\"\\\"updated\\\": true\"));");
-            writer.println("    assertTrue(resp.body().contains(\"\\\"role\\\": \\\"ADMIN\\\"\"));");
-            writer.println("  }");
-            writer.println();
-            writer.println("}");
-            writer.close();
-            
-            System.out.println("Generated GeneratedTests.java successfully!");
-            
-        } catch (IOException e) {
-            System.err.println("Error generating code: " + e.getMessage());
-        }
+configBlock ::= CONFIG LBRACE baseUrl headers RBRACE
+              {:
+                RESULT = new ConfigBlock();
+              :}
+             | CONFIG LBRACE baseUrl RBRACE
+             {:
+               RESULT = new ConfigBlock();
+             :}
+            | CONFIG LBRACE headers RBRACE
+            {:
+              RESULT = new ConfigBlock();
+            :}
+           | CONFIG LBRACE RBRACE
+           {:
+             RESULT = new ConfigBlock();
+           :}
+          ;
+
+baseUrl ::= BASE_URL EQUALS STRING:S SEMICOLON
+          {:
+            // Store base URL in config
+          :}
+         ;
+
+headers ::= headers header
+          | header
+          ;
+
+header ::= HEADER STRING:K EQUALS STRING:V SEMICOLON
+         {:
+           // Store header in config
+         :}
+        ;
+
+variables ::= variables variable
+            | variable
+            | /* empty */
+            {:
+              RESULT = new ArrayList<Variable>();
+            :}
+           ;
+
+variable ::= LET IDENTIFIER:name EQUALS value:val SEMICOLON
+           {:
+             RESULT = new Variable(name, val);
+           :}
+          ;
+
+value ::= STRING:S
+        {:
+          RESULT = S;
+        :}
+       | NUMBER:N
+       {:
+         RESULT = N.toString();
+       :}
+      ;
+
+testBlocks ::= testBlocks testBlock
+             | testBlock
+             {:
+               RESULT = new ArrayList<TestBlock>();
+             :}
+            ;
+
+testBlock ::= TEST IDENTIFIER:name LBRACE statements:stmts RBRACE
+            {:
+              RESULT = new TestBlock(name, stmts);
+            :}
+           ;
+
+statements ::= statements statement
+             | statement
+             {:
+               RESULT = new ArrayList<Statement>();
+             :}
+            ;
+
+statement ::= httpRequest:req
+            {:
+              RESULT = req;
+            :}
+           | httpRequest:req assertions:asserts
+           {:
+             RESULT = new RequestWithAssertions(req, asserts);
+           :}
+          ;
+
+httpRequest ::= GET pathOrUrl:path SEMICOLON
+              {:
+                RESULT = new HttpRequest("GET", path, null, null);
+              :}
+             | DELETE pathOrUrl:path SEMICOLON
+             {:
+               RESULT = new HttpRequest("DELETE", path, null, null);
+             :}
+            | POST pathOrUrl:path LBRACE requestBlock:block RBRACE SEMICOLON
+            {:
+              RESULT = new HttpRequest("POST", path, block.headers, block.body);
+            :}
+           | PUT pathOrUrl:path LBRACE requestBlock:block RBRACE SEMICOLON
+           {:
+             RESULT = new HttpRequest("PUT", path, block.headers, block.body);
+           :}
+          ;
+
+requestBlock ::= headers:hs body:b
+               | headers:hs
+               | body:b
+               | /* empty */
+               {:
+                 RESULT = new RequestBlock(hs, b);
+               :}
+              ;
+
+body ::= BODY EQUALS STRING:b SEMICOLON
+       {:
+         RESULT = b;
+       :}
+      ;
+
+headers ::= headers header:h
+          | header:h
+          {:
+            RESULT = new ArrayList<Header>();
+          :}
+         ;
+
+header ::= HEADER STRING:K EQUALS STRING:V SEMICOLON
+         {:
+           RESULT = new Header(K, V);
+         :}
+        ;
+
+assertions ::= assertions assertion:a
+            | assertion:a
+            {:
+              RESULT = new ArrayList<Assertion>();
+            :}
+           ;
+
+assertion ::= EXPECT STATUS EQUALS NUMBER:n SEMICOLON
+            {:
+              RESULT = new StatusAssertion(n);
+            :}
+           | EXPECT HEADER STRING:K EQUALS STRING:V SEMICOLON
+           {:
+             RESULT = new HeaderEqualsAssertion(K, V);
+           :}
+          | EXPECT HEADER STRING:K CONTAINS STRING:V SEMICOLON
+          {:
+            RESULT = new HeaderContainsAssertion(K, V);
+          :}
+         | EXPECT BODY CONTAINS STRING:S SEMICOLON
+         {:
+           RESULT = new BodyContainsAssertion(S);
+         :}
+        ;
+
+pathOrUrl ::= STRING:path
+            {:
+              RESULT = path;
+            :}
+           ;
+
+// Helper class for request blocks
+class RequestBlock {
+    public List<Header> headers;
+    public String body;
+    
+    public RequestBlock(List<Header> headers, String body) {
+        this.headers = headers != null ? headers : new ArrayList<Header>();
+        this.body = body;
     }
-:};
+}

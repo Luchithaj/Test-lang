@@ -1,3 +1,5 @@
+import ast.*;
+
 public class Main {
     public static void main(String[] args) throws Exception {
         if (args.length == 0) {
@@ -6,7 +8,10 @@ public class Main {
         }
         
         StandaloneLexer lexer = new StandaloneLexer(new java.io.FileReader(args[0]));
-        SimpleParser parser = new SimpleParser(lexer);
-        parser.parse();
+        TestLangParser parser = new TestLangParser(lexer);
+        TestFile result = parser.parse();
+        
+        System.out.println("Parsing complete. Generating JUnit code...");
+        CodeGenerator.generate(result);
     }
 }

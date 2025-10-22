@@ -9,6 +9,11 @@ public class StandaloneLexer {
     
     public StandaloneLexer(Reader reader) {
         this.reader = reader;
+        try {
+            currentChar = reader.read();
+        } catch (IOException e) {
+            currentChar = -1;
+        }
     }
     
     public Token nextToken() throws IOException {
@@ -68,10 +73,8 @@ public class StandaloneLexer {
     }
     
     private int peek() throws IOException {
-        reader.mark(1);
-        int next = reader.read();
-        reader.reset();
-        return next;
+        // Simple peek - just return current char
+        return currentChar;
     }
     
     private void skipLineComment() throws IOException {
