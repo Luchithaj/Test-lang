@@ -1,11 +1,31 @@
 #!/bin/bash
 
+echo "TestLang++ Project Build Script"
+echo "==============================="
+echo ""
+
+# Build the compiler
 echo "Building TestLang++ Compiler..."
+cd compiler
+./scripts/build.sh
+if [ $? -ne 0 ]; then
+    echo "Compiler build failed!"
+    exit 1
+fi
 
-mkdir -p build
+echo ""
+echo "Building Spring Boot Backend..."
+cd ../backend
+mvn -q -DskipTests package
+if [ $? -ne 0 ]; then
+    echo "Backend build failed!"
+    exit 1
+fi
 
-echo "Compiling..."
-javac -d build src/ast/*.java src/CodeGenerator.java src/StandaloneLexer.java src/TestLangParser.java src/Main.java
-
+cd ..
+echo ""
 echo "Build complete!"
-echo "Usage: java -cp build Main <input.test>"
+echo ""
+echo "To run tests:"
+echo "  1. Start backend: ./run-backend.sh"
+echo "  2. Run tests: cd compiler && ./scripts/test-complete.sh"

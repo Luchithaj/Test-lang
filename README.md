@@ -1,36 +1,65 @@
 # TestLang++ - HTTP API Testing DSL
 
-A simple DSL for writing HTTP API tests that compiles to JUnit test classes.
+A simple DSL I built for testing HTTP APIs. It compiles to JUnit 5 tests so you can run them normally.
 
-Overview
+## What's in here
 
-TestLang++ lets you write HTTP API tests in a readable DSL format and automatically generates JUnit test classes using Java HttpClient.
+```
+Test-lang/
+├── compiler/                    # The main compiler code
+│   ├── src/                    # Java source files
+│   │   ├── ast/               # AST classes for parsing
+│   │   ├── CodeGenerator.java # Generates JUnit code
+│   │   ├── Main.java          # Entry point
+│   │   ├── StandaloneLexer.java # Tokenizer
+│   │   └── TestLangParser.java # Parser
+│   ├── lib/                   # JAR dependencies
+│   ├── scripts/               # Build scripts
+│   └── examples/              # Example .test files
+├── backend/                   # Spring Boot app for testing
+└── build.sh                   # Main build script
+```
 
-Quick Start
+## Quick start
 
-### Build the compiler
+Build everything:
 ```bash
 ./build.sh
 ```
 
-### Start the test backend
+Start the backend (in one terminal):
 ```bash
 ./run-backend.sh
 ```
 
-### Compile a test file
+Run tests (in another terminal):
 ```bash
-java -cp build Main example.test
+cd compiler && ./scripts/test-complete.sh
 ```
 
-### Run the generated tests
+## How to use manually
+
+1. Build the compiler:
 ```bash
-java GeneratedTests
+cd compiler
+./scripts/build.sh
 ```
 
-## DSL Syntax
+2. Generate tests from a .test file:
+```bash
+java -cp build Main examples/example.test
+```
 
-### Basic structure
+3. Compile and run the generated tests:
+```bash
+javac -cp "lib/junit-platform-console-standalone-1.9.3.jar" GeneratedTests.java
+java -jar lib/junit-platform-console-standalone-1.9.3.jar --class-path . --select-class GeneratedTests
+```
+
+## DSL syntax
+
+The .test files look like this:
+
 ```testlang
 config {
   base_url = "http://localhost:8080";
@@ -48,64 +77,38 @@ test Login {
   expect header "Content-Type" contains "json";
   expect body contains "\"token\":";
 }
+
+test GetUser {
+  GET "/api/users/$id";
+  expect status = 200;
+  expect body contains "\"id\":42";
+}
 ```
 
-### Features
-- Config blocks for base URL and default headers
-- Variable declarations with `let`
-- HTTP methods: GET, POST, PUT, DELETE
-- Request bodies for POST/PUT
-- Headers for requests
-- Assertions for status, headers, and body content
-- Variable substitution with `$variable`
+## What it does
 
-### Assertions
-- `expect status = 200;` - Check HTTP status
-- `expect header "Name" = "Value";` - Check exact header
-- `expect header "Name" contains "substring";` - Check header contains
-- `expect body contains "substring";` - Check body contains
+- Parses .test files into an AST
+- Substitutes variables like `$id` with actual values
+- Generates JUnit 5 test classes
+- Supports GET, POST, PUT, DELETE requests
+- Has assertions for status codes, headers, and body content
+- Works with the included Spring Boot backend
 
-## Example
+## Requirements
 
-See `example.test` for a complete example with three test cases:
-1. Login test with POST request and JSON body
-2. Get user test with GET request and variable substitution
-3. Update user test with PUT request and multiple assertions
+- Java 11 or higher
+- Maven (for the backend)
 
-## Generated Code
+## Assignment stuff
 
-The compiler generates a JUnit class with:
-- HttpClient setup
-- Individual test methods for each test block
-- HTTP request building with headers and bodies
-- Assertions for status codes, headers, and body content
-- Variable substitution in the generated code
+This was built for SE2062 - TestLang++ (Java) - Backend API Testing DSL.
 
-## Backend
+Features implemented:
+- Custom lexer and parser (no JFlex/CUP, wrote my own)
+- AST for representing parsed code
+- Code generation to JUnit 5
+- Variable substitution in URLs and request bodies
+- HTTP client integration
+- Spring Boot backend for testing
 
-The project includes a Spring Boot backend for testing:
-- POST /api/login - Authentication endpoint
-- GET /api/users/{id} - Get user by ID
-- PUT /api/users/{id} - Update user
-
-## Building
-
-1. Make sure Java 11+ is installed
-2. Run `./build.sh` to compile
-3. The compiler uses a hand-written lexer and simple parser
-
-## Testing
-
-Run the complete pipeline:
-1. Start backend: `./run-backend.sh`
-2. Compile DSL: `java -cp build Main example.test`
-3. Run tests: `java GeneratedTests`
-
-## Files
-
-- `src/StandaloneLexer.java` - Lexical analyzer
-- `src/SimpleParser.java` - Parser and code generator
-- `src/Main.java` - Main compiler class
-- `backend/` - Spring Boot test server
-- `example.test` - Sample DSL file
-- `GeneratedTests.java` - Generated JUnit code
+The generated tests show up in a nice JUnit tree view with green checkmarks and everything.
