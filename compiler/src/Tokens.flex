@@ -1,19 +1,17 @@
-package parser;
-
-import java_cup.runtime.*;
+import java_cup.runtime.Symbol;
 
 %%
 
-%class TestLangLexer
 %public
+%class StandaloneLexer
 %cup
+%unicode
 %line
 %column
-%unicode
 
 %{
     private Symbol symbol(int type) {
-        return new Symbol(type, yyline + 1, yycolumn + 1, yytext());
+        return new Symbol(type, yyline + 1, yycolumn + 1, null);
     }
     
     private Symbol symbol(int type, Object value) {
@@ -23,12 +21,32 @@ import java_cup.runtime.*;
     private void error(String message) {
         System.err.println("Lexical error at line " + (yyline + 1) + ", column " + (yycolumn + 1) + ": " + message);
     }
+    
+    private String unescape(String text) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '\\' && i + 1 < text.length()) {
+                char next = text.charAt(++i);
+                switch (next) {
+                    case 'n': sb.append('\n'); break;
+                    case 't': sb.append('\t'); break;
+                    case 'r': sb.append('\r'); break;
+                    case '\\': sb.append('\\'); break;
+                    case '"': sb.append('\"'); break;
+                    default: sb.append(next); break;
+                }
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
 %}
 
 %%
 
 <YYINITIAL> {
-    // Keywords
     "config"          { return symbol(sym.CONFIG); }
     "base_url"        { return symbol(sym.BASE_URL); }
     "header"          { return symbol(sym.HEADER); }
@@ -42,38 +60,29 @@ import java_cup.runtime.*;
     "status"          { return symbol(sym.STATUS); }
     "body"            { return symbol(sym.BODY); }
     "contains"        { return symbol(sym.CONTAINS); }
-    
-    // Identifiers
+
     [A-Za-z_][A-Za-z0-9_]* { return symbol(sym.IDENTIFIER, yytext()); }
-    
-    // Numbers
-    [0-9]+            { return symbol(sym.NUMBER, Integer.valueOf(yytext())); }
-    
-    // Strings with escape sequences
-    \"([^\"\\]|\\.)*\" { 
-        String str = yytext();
-        str = str.substring(1, str.length() - 1);
-        str = str.replace("\\\"", "\"").replace("\\\\", "\\");
-        return symbol(sym.STRING, str);
+
+    [0-9]+ { return symbol(sym.NUMBER, Integer.valueOf(yytext())); }
+
+    \"([^\"\\]|\\.)*\" {
+        String raw = yytext();
+        String inner = raw.substring(1, raw.length() - 1);
+        return symbol(sym.STRING, unescape(inner));
     }
-    
-    // Variable references
+
     \$[A-Za-z_][A-Za-z0-9_]* { return symbol(sym.VAR_REF, yytext().substring(1)); }
-    
-    // Operators and punctuation
-    "="               { return symbol(sym.EQUALS); }
-    ";"               { return symbol(sym.SEMICOLON); }
-    "{"               { return symbol(sym.LBRACE); }
-    "}"               { return symbol(sym.RBRACE); }
-    "("               { return symbol(sym.LPAREN); }
-    ")"               { return symbol(sym.RPAREN); }
-    
-    // Line comments
-    "//"[^\r\n]*      { /* ignore line comments */ }
-    
-    // Whitespace
-    [ \t\r\n]+        { /* ignore whitespace */ }
-    
-    // Error
-    .                 { error("Illegal character: " + yytext()); }
+
+    "="  { return symbol(sym.EQUALS); }
+    ";"  { return symbol(sym.SEMICOLON); }
+    "{"  { return symbol(sym.LBRACE); }
+    "}"  { return symbol(sym.RBRACE); }
+    "("  { return symbol(sym.LPAREN); }
+    ")"  { return symbol(sym.RPAREN); }
+
+    "//"[^\r\n]* { /* skip comments */ }
+
+    [ \t\r\n]+ { /* skip whitespace */ }
+
+    . { error("Illegal character: " + yytext()); }
 }

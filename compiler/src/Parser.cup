@@ -1,288 +1,245 @@
-package parser;
-
+import java.io.*;
 import java_cup.runtime.*;
 import java.util.*;
 import ast.*;
 
 parser code {:
+    public TestFile parseFile() throws Exception {
+        Symbol sym = super.parse();
+        return (TestFile) sym.value;
+    }
+
     public static void main(String[] args) throws Exception {
-        TestLangLexer lexer = new TestLangLexer(new java.io.FileReader(args[0]));
+        if (args.length == 0) {
+            System.err.println("Usage: java TestLangParser <input.test>");
+            System.exit(1);
+        }
+        StandaloneLexer lexer = new StandaloneLexer(new FileReader(args[0]));
         TestLangParser parser = new TestLangParser(lexer);
-        TestFile result = (TestFile) parser.parse().value;
-        
+        TestFile result = parser.parseFile();
+
         System.out.println("Parsing complete. Generating JUnit code...");
         CodeGenerator.generate(result);
     }
+
+    static class RequestData {
+        List<Header> headers = new ArrayList<Header>();
+        String body = null;
+    }
+
+    static class ConfigEntry {
+        String baseUrl;
+        Header header;
+        ConfigEntry(String baseUrl, Header header) {
+            this.baseUrl = baseUrl;
+            this.header = header;
+        }
+    }
+
+    static class RequestEntry {
+        Header header;
+        String body;
+        RequestEntry(Header header, String body) {
+            this.header = header;
+            this.body = body;
+        }
+    }
 :};
 
-// Terminal symbols
 terminal CONFIG, BASE_URL, HEADER, LET, TEST, GET, POST, PUT, DELETE;
 terminal EXPECT, STATUS, BODY, CONTAINS, EQUALS, SEMICOLON;
 terminal LBRACE, RBRACE, LPAREN, RPAREN;
 terminal String IDENTIFIER, STRING, VAR_REF;
 terminal Integer NUMBER;
 
-// Non-terminal symbols
 non terminal TestFile testFile;
-non terminal ConfigBlock configBlock;
 non terminal ConfigBlock optConfig;
-non terminal String baseUrl;
-non terminal ConfigBlock configNonEmpty;
+non terminal ConfigBlock configBlock;
+non terminal ConfigBlock configItemsOpt;
+non terminal ConfigBlock configItems;
+non terminal ConfigEntry configItem;
+non terminal String baseUrlValue;
+non terminal Header headerStmt;
 non terminal List<Variable> variables;
 non terminal Variable variable;
+non terminal String value;
 non terminal List<TestBlock> testBlocks;
 non terminal TestBlock testBlock;
 non terminal List<Statement> statements;
 non terminal Statement statement;
 non terminal HttpRequest httpRequest;
-non terminal RequestBlock requestBlock;
-non terminal List<Header> requestHeaders;
-non terminal List<Header> configHeaders;
-non terminal Header header;
-non terminal String body;
+non terminal RequestData optRequestBlock;
+non terminal RequestData requestItemsOpt;
+non terminal RequestData requestItems;
+non terminal RequestEntry requestItem;
+non terminal String bodyValue;
+non terminal List<Assertion> assertionsOpt;
 non terminal List<Assertion> assertionsPlus;
 non terminal Assertion assertion;
-non terminal String pathOrUrl;
-non terminal String value;
+non terminal Object optSemicolon;
 
 start with testFile;
 
-// Grammar rules
-testFile ::= optConfig:config variables:vars testBlocks:tests
-            {:
-                RESULT = new TestFile(config, vars, tests);
-            :}
-          ;
-
-optConfig ::= configBlock:cfg
-            {:
-              RESULT = cfg;
-            :}
-           | /* empty */
-            {:
-              RESULT = null;
-            :}
+testFile ::= optConfig:cfg variables:vars testBlocks:tests
+            {: RESULT = new TestFile(cfg, vars, tests); :}
            ;
 
-configBlock ::= CONFIG LBRACE configNonEmpty:c RBRACE
+optConfig ::= configBlock:cfg
+            {: RESULT = cfg; :}
+           | /* empty */
+            {: RESULT = null; :}
+           ;
+
+configBlock ::= CONFIG LBRACE configItemsOpt:cfg RBRACE
+              {: RESULT = cfg; :}
+             ;
+
+configItemsOpt ::= configItems:cfg
+                 {: RESULT = cfg; :}
+                | /* empty */
+                 {: RESULT = new ConfigBlock(); :}
+                ;
+
+configItems ::= configItems:cfg configItem:item
               {:
-                RESULT = c;
+                 if (item.baseUrl != null) cfg.baseUrl = item.baseUrl;
+                 if (item.header != null) cfg.headers.put(item.header.name, item.header.value);
+                 RESULT = cfg;
               :}
-             | CONFIG LBRACE RBRACE
+             | configItem:item
               {:
-                RESULT = new ConfigBlock();
+                 ConfigBlock cfg = new ConfigBlock();
+                 if (item.baseUrl != null) cfg.baseUrl = item.baseUrl;
+                 if (item.header != null) cfg.headers.put(item.header.name, item.header.value);
+                 RESULT = cfg;
               :}
              ;
 
-configNonEmpty ::= baseUrl:bu configHeaders:hs
-                 {:
-                   ConfigBlock c = new ConfigBlock();
-                   c.baseUrl = bu;
-                   for (Header h : hs) c.headers.put(h.name, h.value);
-                   RESULT = c;
-                 :}
-                 | configHeaders:hs baseUrl:bu
-                 {:
-                   ConfigBlock c = new ConfigBlock();
-                   c.baseUrl = bu;
-                   for (Header h : hs) c.headers.put(h.name, h.value);
-                   RESULT = c;
-                 :}
-                 | baseUrl:bu
-                 {:
-                   ConfigBlock c = new ConfigBlock();
-                   c.baseUrl = bu;
-                   RESULT = c;
-                 :}
-                 | configHeaders:hs
-                 {:
-                   ConfigBlock c = new ConfigBlock();
-                   for (Header h : hs) c.headers.put(h.name, h.value);
-                   RESULT = c;
-                 :}
-                 ;
+configItem ::= baseUrlValue:bu
+             {: RESULT = new ConfigEntry(bu, null); :}
+            | headerStmt:h
+             {: RESULT = new ConfigEntry(null, h); :}
+            ;
 
-baseUrl ::= BASE_URL EQUALS STRING:S SEMICOLON
-          {:
-            RESULT = S;
-          :}
-         ;
+baseUrlValue ::= BASE_URL EQUALS STRING:s SEMICOLON
+               {: RESULT = s; :}
+               ;
 
-/* headers for both config and request blocks are defined below with values */
+headerStmt ::= HEADER STRING:k EQUALS STRING:v SEMICOLON
+             {: RESULT = new Header(k, v); :}
+             ;
 
-variables ::= /* empty */
-            {:
-              RESULT = new ArrayList<Variable>();
-            :}
-           | variables:vs variable:v
-            {:
-              vs.add(v);
-              RESULT = vs;
-            :}
+variables ::= variables:vs variable:v
+            {: vs.add(v); RESULT = vs; :}
+           | /* empty */
+            {: RESULT = new ArrayList<Variable>(); :}
            ;
 
 variable ::= LET IDENTIFIER:name EQUALS value:val SEMICOLON
-           {:
-             RESULT = new Variable(name, val);
-           :}
-          ;
+           {: RESULT = new Variable(name, val); :}
+           ;
 
-value ::= STRING:S
-        {:
-          RESULT = S;
-        :}
-       | NUMBER:N
-       {:
-         RESULT = N.toString();
-       :}
-      ;
+value ::= STRING:s
+        {: RESULT = s; :}
+       | NUMBER:n
+        {: RESULT = Integer.toString(n.intValue()); :}
+       ;
 
-testBlocks ::= /* empty */
-             {:
-               RESULT = new ArrayList<TestBlock>();
-             :}
-            | testBlocks:tbs testBlock:tb
-             {:
-               tbs.add(tb);
-               RESULT = tbs;
-             :}
+testBlocks ::= testBlocks:tbs testBlock:tb
+             {: tbs.add(tb); RESULT = tbs; :}
+            | /* empty */
+             {: RESULT = new ArrayList<TestBlock>(); :}
             ;
 
 testBlock ::= TEST IDENTIFIER:name LBRACE statements:stmts RBRACE
-            {:
-              RESULT = new TestBlock(name, stmts);
-            :}
+            {: RESULT = new TestBlock(name, stmts); :}
            ;
 
-statements ::= /* empty */
-             {:
-               RESULT = new ArrayList<Statement>();
-             :}
-            | statements:ss statement:s
-             {:
-               ss.add(s);
-               RESULT = ss;
-             :}
+statements ::= statements:ss statement:s
+             {: ss.add(s); RESULT = ss; :}
+            | /* empty */
+             {: RESULT = new ArrayList<Statement>(); :}
             ;
 
-statement ::= httpRequest:req
-            {:
-              RESULT = req;
-            :}
-           | httpRequest:req assertionsPlus:asserts
-           {:
-             RESULT = new RequestWithAssertions(req, asserts);
-           :}
-          ;
-
-httpRequest ::= GET pathOrUrl:path SEMICOLON
-              {:
-                RESULT = new HttpRequest("GET", path, null, null);
-              :}
-             | DELETE pathOrUrl:path SEMICOLON
-             {:
-               RESULT = new HttpRequest("DELETE", path, null, null);
+statement ::= httpRequest:req assertionsOpt:as
+            {: if (as.isEmpty()) RESULT = req;
+               else RESULT = new RequestWithAssertions(req, as);
              :}
-            | POST pathOrUrl:path LBRACE requestBlock:block RBRACE SEMICOLON
-            {:
-              RESULT = new HttpRequest("POST", path, block.headers, block.body);
-            :}
-           | PUT pathOrUrl:path LBRACE requestBlock:block RBRACE SEMICOLON
-           {:
-             RESULT = new HttpRequest("PUT", path, block.headers, block.body);
-           :}
-          ;
+           ;
 
-requestBlock ::= requestHeaders:hs body:b
+httpRequest ::= GET STRING:path optSemicolon
+              {: RESULT = new HttpRequest("GET", path, new ArrayList<Header>(), null); :}
+             | DELETE STRING:path optSemicolon
+              {: RESULT = new HttpRequest("DELETE", path, new ArrayList<Header>(), null); :}
+             | POST STRING:path optRequestBlock:data optSemicolon
+              {: RESULT = new HttpRequest("POST", path, data.headers, data.body); :}
+             | PUT STRING:path optRequestBlock:data optSemicolon
+              {: RESULT = new HttpRequest("PUT", path, data.headers, data.body); :}
+             ;
+
+optRequestBlock ::= LBRACE requestItemsOpt:data RBRACE
+                  {: RESULT = data; :}
+                 | /* empty */
+                  {: RESULT = new RequestData(); :}
+                 ;
+
+requestEntries ::= requestItemsOpt:data
+                 {: RESULT = data; :}
+                ;
+
+requestItemsOpt ::= requestItems:data
+                  {: RESULT = data; :}
+                 | /* empty */
+                  {: RESULT = new RequestData(); :}
+                 ;
+
+requestItems ::= requestItems:data requestItem:item
                {:
-                 RESULT = new RequestBlock(hs, b);
+                 if (item.header != null) data.headers.add(item.header);
+                 if (item.body != null) data.body = item.body;
+                 RESULT = data;
                :}
-               | requestHeaders:hs
+              | requestItem:item
                {:
-                 RESULT = new RequestBlock(hs, null);
-               :}
-               | body:b
-               {:
-                 RESULT = new RequestBlock(new ArrayList<Header>(), b);
+                 RequestData data = new RequestData();
+                 if (item.header != null) data.headers.add(item.header);
+                 if (item.body != null) data.body = item.body;
+                 RESULT = data;
                :}
               ;
 
-body ::= BODY EQUALS STRING:b SEMICOLON
-       {:
-         RESULT = b;
-       :}
-      ;
+requestItem ::= headerStmt:h
+              {: RESULT = new RequestEntry(h, null); :}
+             | bodyValue:b
+              {: RESULT = new RequestEntry(null, b); :}
+             ;
 
-/* One-or-more headers for requests */
-requestHeaders ::= header:h
-                 {:
-                   List<Header> hs = new ArrayList<Header>();
-                   hs.add(h);
-                   RESULT = hs;
-                 :}
-                 | requestHeaders:hs header:h
-                 {:
-                   hs.add(h);
-                   RESULT = hs;
-                 :}
-                 ;
+bodyValue ::= BODY EQUALS STRING:s SEMICOLON
+            {: RESULT = s; :}
+            ;
 
-/* One-or-more headers for config */
-configHeaders ::= header:h
-                {:
-                  List<Header> hs = new ArrayList<Header>();
-                  hs.add(h);
-                  RESULT = hs;
-                :}
-                | configHeaders:hs header:h
-                {:
-                  hs.add(h);
-                  RESULT = hs;
-                :}
+assertionsOpt ::= assertionsPlus:as
+                {: RESULT = as; :}
+               | /* empty */
+                {: RESULT = new ArrayList<Assertion>(); :}
+               ;
+
+assertionsPlus ::= assertionsPlus:as assertion:a
+                 {: as.add(a); RESULT = as; :}
+                | assertion:a
+                 {: ArrayList<Assertion> list = new ArrayList<Assertion>(); list.add(a); RESULT = list; :}
                 ;
 
-header ::= HEADER STRING:K EQUALS STRING:V SEMICOLON
-         {:
-           RESULT = new Header(K, V);
-         :}
-        ;
-
-/* One-or-more assertions */
-assertionsPlus ::= assertion:a
-                 {:
-                   List<Assertion> as = new ArrayList<Assertion>();
-                   as.add(a);
-                   RESULT = as;
-                 :}
-                 | assertionsPlus:as assertion:a
-                 {:
-                   as.add(a);
-                   RESULT = as;
-                 :}
-                 ;
-
 assertion ::= EXPECT STATUS EQUALS NUMBER:n SEMICOLON
-            {:
-              RESULT = new StatusAssertion(n);
-            :}
-           | EXPECT HEADER STRING:K EQUALS STRING:V SEMICOLON
-           {:
-             RESULT = new HeaderEqualsAssertion(K, V);
-           :}
-          | EXPECT HEADER STRING:K CONTAINS STRING:V SEMICOLON
-          {:
-            RESULT = new HeaderContainsAssertion(K, V);
-          :}
-         | EXPECT BODY CONTAINS STRING:S SEMICOLON
-         {:
-           RESULT = new BodyContainsAssertion(S);
-         :}
-        ;
-
-pathOrUrl ::= STRING:path
-            {:
-              RESULT = path;
-            :}
+            {: RESULT = new StatusAssertion(n.intValue()); :}
+           | EXPECT HEADER STRING:k EQUALS STRING:v SEMICOLON
+            {: RESULT = new HeaderEqualsAssertion(k, v); :}
+           | EXPECT HEADER STRING:k CONTAINS STRING:v SEMICOLON
+            {: RESULT = new HeaderContainsAssertion(k, v); :}
+           | EXPECT BODY CONTAINS STRING:s SEMICOLON
+            {: RESULT = new BodyContainsAssertion(s); :}
            ;
 
-/* Helper RequestBlock is defined in ast package now */
+optSemicolon ::= SEMICOLON
+               | /* empty */
+               ;
