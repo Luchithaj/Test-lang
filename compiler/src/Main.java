@@ -1,4 +1,8 @@
 import ast.*;
+import parser.TestLangLexer;
+import parser.TestLangParser;
+import parser.CodeGenerator;
+import java_cup.runtime.Symbol;
 
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -7,9 +11,10 @@ public class Main {
             System.exit(1);
         }
         
-        StandaloneLexer lexer = new StandaloneLexer(new java.io.FileReader(args[0]));
+        TestLangLexer lexer = new TestLangLexer(new java.io.FileReader(args[0]));
         TestLangParser parser = new TestLangParser(lexer);
-        TestFile result = parser.parse();
+        Symbol sym = parser.parse();
+        TestFile result = (TestFile) sym.value;
         
         System.out.println("Parsing complete. Generating JUnit code...");
         CodeGenerator.generate(result);

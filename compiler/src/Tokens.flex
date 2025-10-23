@@ -5,6 +5,7 @@ import java_cup.runtime.*;
 %%
 
 %class TestLangLexer
+%public
 %cup
 %line
 %column

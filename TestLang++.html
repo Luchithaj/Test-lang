@@ -1,0 +1,419 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <title>SE2062 – TestLang++ (Java) – Backend API Testing DSL (Assignment + Language Reference)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root{
+      --ink:#17202a; --muted:#53606e; --accent:#0ea5e9; --paper:#ffffff; --line:#e6edf3;
+      --band:#eaf4ff; --good:#16a34a; --warn:#f59e0b; --bad:#dc2626;
+    }
+    html,body{background:#f7fbff;color:var(--ink);font:16px/1.55 "Segoe UI",system-ui,Arial,sans-serif;margin:0}
+    .page{max-width:1024px;margin:28px auto;background:var(--paper);border:1px solid var(--line);
+          border-radius:14px;padding:28px 30px 40px;box-shadow:0 10px 28px rgba(2,12,27,.06)}
+    h1,h2,h3{color:#003366;margin:.5rem 0}
+    h1{font-size:28px} h2{font-size:22px} h3{font-size:19px}
+    p.lead{color:var(--muted);margin-top:0}
+    .pill{display:inline-block;background:var(--band);border:1px solid var(--line);padding:6px 10px;border-radius:999px;margin-right:8px}
+    table{width:100%;border-collapse:collapse;margin:14px 0;border:1px solid var(--line)}
+    th,td{border:1px solid var(--line);padding:10px 12px;vertical-align:top}
+    th{background:var(--band);text-align:left}
+    code,pre{background:#f3f8fe;border:1px solid var(--line);border-radius:8px}
+    code{padding:2px 6px}
+    pre{padding:10px 12px;white-space:pre-wrap}
+    ul.tight>li{margin:.25rem 0}
+    .box{background:#fff;border:1px dashed var(--line);border-radius:10px;padding:12px}
+    .muted{color:var(--muted)}
+    .small{font-size:.95rem}
+    .grid{display:grid;gap:12px}
+    .grid-2{grid-template-columns:1fr 1fr}
+    .k{font-weight:600;color:#0b5cab}
+    .badge{display:inline-block;font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:#fff}
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>SE2062 – TestLang++ (Java) – Backend API Testing DSL</h1>
+  <p class="lead">Individual take-home assignment (3 weeks). You will design and implement a small DSL for HTTP API testing, and compile it into runnable <strong>JUnit 5</strong> tests that use Java 11+ <code>HttpClient</code>. No Selenium or third-party libraries.</p>
+  <p>
+    <span class="pill"><strong>Duration:</strong> ~18–24 hours across 3 weeks</span>
+    <span class="pill"><strong>Deadline:</strong> 25th October 2025</span>
+    <span class="pill"><strong>Total Marks:</strong> 100</span>
+  </p>
+
+  <h2>🎯 Objective</h2>
+  <p>Create a DSL (<strong>TestLang++</strong>) to describe HTTP tests (GET/POST/PUT/DELETE, headers, body, assertions). Implement a scanner and parser (Lex/Yacc or JFlex/CUP) that translate <code>.test</code> files into a single <code>GeneratedTests.java</code> JUnit 5 class. Compile and run the generated tests against a local backend.</p>
+
+  <h2>📚 Learning Outcomes</h2>
+  <ul>
+    <li>Design a precise language from a prose specification.</li>
+    <li>Build a Java scanner+parser with meaningful error messages.</li>
+    <li>Generate idiomatic JUnit 5 code that performs HTTP requests via <code>java.net.http.HttpClient</code>.</li>
+    <li>Demonstrate end-to-end testing on a local Spring Boot backend.</li>
+  </ul>
+
+  <h2>🧪 What You Will Build (End-to-End)</h2>
+  <ol>
+    <li>Author tests in <code>.test</code> (your DSL).</li>
+    <li>Run your parser → generates <code>GeneratedTests.java</code>.</li>
+    <li>Compile &amp; run with JUnit 5 → see pass/fail.</li>
+  </ol>
+
+  <h2>🧩 TestLang++ Language Reference (Trimmed Scope)</h2>
+  <p class="small muted">This is the authoritative spec. You must derive tokens, precedence, and productions from this description. Do not add extra features beyond “Optional Extras”.</p>
+
+  <h3>1) File Structure &amp; Order</h3>
+  <table>
+    <tbody><tr><th>Construct</th><th>Required?</th><th>Multiplicity</th><th>Semantics</th></tr>
+    <tr>
+      <td><code>config { ... }</code></td><td>No</td><td>0..1, at top</td>
+      <td>Defines <code>base_url</code> and default headers for all requests.</td>
+    </tr>
+    <tr>
+      <td><code>let name = value;</code></td><td>No</td><td>0..N</td>
+      <td>Declares <em>string</em> or <em>integer</em> variables. Refer with <code>$name</code> inside strings and paths.</td>
+    </tr>
+    <tr>
+      <td><code>test Name { ... }</code></td><td>Yes</td><td>1..N</td>
+      <td>Each block compiles to one <code>@Test</code> method. Steps execute in order.</td>
+    </tr>
+  </tbody></table>
+
+  <h3>2) Lexical Rules</h3>
+  <table>
+    <tbody><tr><th>Item</th><th>Pattern / Rule</th><th>Examples</th><th>Notes</th></tr>
+    <tr><td>Whitespace</td><td>spaces / tabs / newlines</td><td>—</td><td>Separates tokens.</td></tr>
+    <tr><td>Line comments</td><td><code>//</code> until end of line</td><td><code>// comment</code></td><td>Block comments not required.</td></tr>
+    <tr><td>Identifiers</td><td><code>[A-Za-z_][A-Za-z0-9_]*</code></td><td><code>Login</code>, <code>GetUser</code></td><td>Case-sensitive.</td></tr>
+    <tr><td>Numbers</td><td>non-negative integers</td><td><code>0</code>, <code>200</code>, <code>42</code></td><td>No floats.</td></tr>
+    <tr><td>Strings</td><td>double-quoted, supports <code>\"</code> and <code>\\</code></td><td><code>"hello"</code></td><td>No multiline strings.</td></tr>
+    <tr><td>Var refs</td><td><code>$name</code> inside strings/paths</td><td><code>"/u/$id"</code></td><td>No vars outside strings/paths.</td></tr>
+    <tr><td>Reserved</td><td colspan="3"><code>config, base_url, header, let, test, GET, POST, PUT, DELETE, expect, status, body, contains</code></td></tr>
+  </tbody></table>
+
+  <h3>3) <code>config</code> Block (optional)</h3>
+  <pre>config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+  header "X-App" = "TestLangDemo";
+}</pre>
+  <ul class="tight">
+    <li><code>base_url</code>: If present and a request path starts with <code>"/"</code>, the effective URL is <code>base_url + path</code>. If absent, paths must be absolute URLs.</li>
+    <li><code>header "K" = "V";</code> zero or more default headers applied to every request (request-level headers may add/override).</li>
+  </ul>
+
+  <h3>4) Variables</h3>
+  <pre>let user = "admin";
+let id = 42;</pre>
+  <ul class="tight">
+    <li>Right-hand side is <strong>string</strong> or <strong>integer</strong>.</li>
+    <li>Use <code>$user</code>, <code>$id</code> in strings and paths: <code>"/api/users/$id"</code>.</li>
+    <li>Names must be unique within a file.</li>
+  </ul>
+
+  <h3>5) <code>test</code> Block &amp; Steps (required)</h3>
+  <table>
+    <tbody><tr><th>Form</th><th>Notes</th></tr>
+    <tr>
+      <td><code>test Name { <em>steps</em> }</code></td>
+      <td><em>Name</em> is an identifier used to name the JUnit method <code>test_Name</code>.</td>
+    </tr>
+  </tbody></table>
+
+  <h4>5.1 HTTP Request Statements</h4>
+  <table>
+    <tbody><tr><th>Statement</th><th>Meaning</th></tr>
+    <tr><td><code>GET "/path_or_url";</code></td><td>Sends a GET. No request block required.</td></tr>
+    <tr><td><code>DELETE "/path_or_url";</code></td><td>Sends a DELETE. No request block required.</td></tr>
+    <tr><td><code>POST "/path_or_url" { ... };</code></td><td>Sends a POST. Request block may include headers/body.</td></tr>
+    <tr><td><code>PUT "/path_or_url" { ... };</code></td><td>Sends a PUT. Request block may include headers/body.</td></tr>
+  </tbody></table>
+
+  <h4>5.2 Request Block (optional for GET/DELETE; optional for POST/PUT)</h4>
+  <table>
+    <tbody><tr><th>Line</th><th>Semantics</th><th>Example</th></tr>
+    <tr>
+      <td><code>header "K" = "V";</code></td>
+      <td>Applies to this request only (in addition to config headers).</td>
+      <td><code>header "Content-Type" = "application/json";</code></td>
+    </tr>
+    <tr>
+      <td><code>body = "string";</code></td>
+      <td>Single-line request body (e.g., JSON as a string).</td>
+      <td><code>body = "{ \"username\": \"$user\" }";</code></td>
+    </tr>
+  </tbody></table>
+
+  <h4>5.3 Assertions (after a request)</h4>
+  <table>
+    <tbody><tr><th>Form</th><th>Checks</th><th>Example</th></tr>
+    <tr>
+      <td><code>expect status = NUMBER;</code></td>
+      <td>HTTP status equals NUMBER</td>
+      <td><code>expect status = 200;</code></td>
+    </tr>
+    <tr>
+      <td><code>expect header "K" = "V";</code></td>
+      <td>Response header equals string</td>
+      <td><code>expect header "Content-Type" = "application/json";</code></td>
+    </tr>
+    <tr>
+      <td><code>expect header "K" contains "sub";</code></td>
+      <td>Response header contains substring</td>
+      <td><code>expect header "Content-Type" contains "json";</code></td>
+    </tr>
+    <tr>
+      <td><code>expect body contains "sub";</code></td>
+      <td>Response body contains substring</td>
+      <td><code>expect body contains "\"token\":";</code></td>
+    </tr>
+  </tbody></table>
+  <p class="small muted">Each <code>test</code> must execute ≥1 request and ≥2 assertions.</p>
+
+  <h2>🧪 Example Input → Expected Meaning</h2>
+  <div class="box">
+    <pre>config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+}
+
+// variables
+let user = "admin";
+let id = 42;
+
+test Login {
+  POST "/api/login" {
+    body = "{ \"username\": \"$user\", \"password\": \"1234\" }";
+  }
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"token\":";
+}
+
+test GetUser {
+  GET "/api/users/$id";
+  expect status = 200;
+  expect body contains "\"id\": 42";
+}</pre>
+    <p class="muted small">Your generator must produce one JUnit 5 class with two <code>@Test</code> methods executing these requests and assertions via <code>HttpClient</code>.</p>
+  </div>
+
+  <h2>🧰 Required Code Generation Shape (JUnit 5 + HttpClient)</h2>
+  <p class="small muted">You may factor helpers; the following shape must compile and run.</p>
+  <pre>import org.junit.jupiter.api.*;
+import static org.junit.jupiter.api.Assertions.*;
+import java.net.http.*; import java.net.*; import java.time.Duration;
+import java.nio.charset.StandardCharsets; import java.util.*;
+
+public class GeneratedTests {
+  static String BASE = "http://localhost:8080";
+  static Map&lt;String,String&gt; DEFAULT_HEADERS = new HashMap&lt;&gt;();
+  static HttpClient client;
+
+  @BeforeAll
+  static void setup() {
+    client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+    DEFAULT_HEADERS.put("Content-Type","application/json");
+  }
+
+  @Test
+  void test_Login() throws Exception {
+    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/login"))
+      .timeout(Duration.ofSeconds(10))
+      .POST(HttpRequest.BodyPublishers.ofString("{ \"username\": \"admin\", \"password\": \"1234\" }"));
+    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
+    HttpResponse&lt;String&gt; resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+    assertEquals(200, resp.statusCode());
+    assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"));
+    assertTrue(resp.body().contains("\"token\":"));
+  }
+
+  @Test
+  void test_GetUser() throws Exception {
+    HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users/42"))
+      .timeout(Duration.ofSeconds(10))
+      .GET();
+    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
+    HttpResponse&lt;String&gt; resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+
+    assertEquals(200, resp.statusCode());
+    assertTrue(resp.body().contains("\"id\": 42"));
+  }
+}</pre>
+
+  <h2>🧱 Out-of-Scope (keeps workload reasonable)</h2>
+  <ul class="tight">
+    <li>No JSON parsing/JSONPath.</li>
+    <li>No loops/conditionals/macros/hooks.</li>
+    <li>No retries or per-request timeouts (you can hard-code a default in Java).</li>
+    <li>No multiline strings; single line only.</li>
+    <li>No response capture/assign; assertions are the observable outcome.</li>
+    <li>No suites; one file → one class is sufficient.</li>
+  </ul>
+
+  <h2>✨ Optional Extras (bonus up to +10)</h2>
+  <ul class="tight">
+    <li>Triple-quoted multiline strings for <code>body</code>.</li>
+    <li>Range status check (e.g., <code>expect status in 200..299</code>).</li>
+  </ul>
+
+  <h2>🧪 Invalid Input Examples (your parser must error clearly)</h2>
+  <table>
+    <tbody><tr><th>Invalid</th><th>Why</th><th>Example Error Message</th></tr>
+    <tr>
+      <td><code>let 2a = "x";</code></td>
+      <td>Identifier cannot start with a digit</td>
+      <td><em>Line 1: expected IDENT after 'let'</em></td>
+    </tr>
+    <tr>
+      <td><code>POST "/x" { body = 123; };</code></td>
+      <td>Body must be a string</td>
+      <td><em>Line N: expected STRING after 'body ='</em></td>
+    </tr>
+    <tr>
+      <td><code>expect status = "200";</code></td>
+      <td>Status must be integer</td>
+      <td><em>Line N: expected NUMBER for status</em></td>
+    </tr>
+    <tr>
+      <td><code>GET "/x"  expect status = 200;</code></td>
+      <td>Missing semicolon after request</td>
+      <td><em>Line N: expected ';' after request</em></td>
+    </tr>
+  </tbody></table>
+
+  <h2>🧪 Reference Backend (3 Cases)</h2>
+  <p class="small muted">A minimal Spring Boot backend (Java 11) is provided to exercise the DSL. Run it on <code>http://localhost:8080</code>. Each case maps to your assertions.</p>
+
+  <table>
+    <tbody><tr><th>#</th><th>Endpoint</th><th>Purpose</th><th>Sample TestLang++</th></tr>
+    <tr>
+      <td><span class="badge">1</span></td>
+      <td><code>POST /api/login</code></td>
+      <td>POST body, <code>status</code>, <code>header contains</code>, <code>body contains</code></td>
+      <td><pre>POST "/api/login" {
+  header "Content-Type" = "application/json";
+  body = "{ \"username\": \"$user\", \"password\": \"1234\" }";
+}
+expect status = 200;
+expect header "Content-Type" contains "json";
+expect body contains "\"token\":";</pre></td>
+    </tr>
+    <tr>
+      <td><span class="badge">2</span></td>
+      <td><code>GET /api/users/$id</code></td>
+      <td>GET + var substitution, <code>status</code>, <code>body contains</code></td>
+      <td><pre>GET "/api/users/$id";
+expect status = 200;
+expect body contains "\"id\": 42";</pre></td>
+    </tr>
+    <tr>
+      <td><span class="badge">3</span></td>
+      <td><code>PUT /api/users/$id</code></td>
+      <td>PUT body, <code>header equals</code>, <code>header contains</code>, multiple <code>body contains</code></td>
+      <td><pre>PUT "/api/users/$id" {
+  header "Content-Type" = "application/json";
+  body = "{ \"role\": \"ADMIN\" }";
+}
+expect status = 200;
+expect header "X-App" = "TestLangDemo";
+expect header "Content-Type" contains "json";
+expect body contains "\"updated\": true";
+expect body contains "\"role\": \"ADMIN\"";</pre></td>
+    </tr>
+  </tbody></table>
+
+  <div class="grid grid-2">
+    <div>
+      <h3>▶ Build &amp; Run Backend</h3>
+      <pre># From project root of the provided Spring Boot demo
+mvn clean package
+java -jar target/testlang-demo-0.0.1-SNAPSHOT.jar
+# Server: http://localhost:8080</pre>
+    </div>
+    <div>
+      <h3>🧪 Quick Manual Checks (cURL)</h3>
+      <pre># Login
+curl -i -X POST http://localhost:8080/api/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"1234"}'
+
+# Get user
+curl -i http://localhost:8080/api/users/42
+
+# Update user
+curl -i -X PUT http://localhost:8080/api/users/42 \
+  -H 'Content-Type: application/json' \
+  -d '{"role":"ADMIN"}'</pre>
+    </div>
+  </div>
+
+  <h2>📦 Submission Requirements</h2>
+  <ul>
+    <li><strong>Language Compliance:</strong> Implement the spec above exactly.</li>
+    <li><strong>Scanner &amp; Parser:</strong> <code>lexer.l</code>/<code>.flex</code> and <code>parser.y</code>/<code>.cup</code> producing <code>GeneratedTests.java</code>.</li>
+    <li><strong>Examples:</strong> <code>example.test</code> (≥2 tests covering GET &amp; POST); <code>GeneratedTests.java</code> (output).</li>
+    <li><strong>README.md:</strong> how to run backend, run parser, compile &amp; run tests.</li>
+    <li><strong>Demo video (≤3 min):</strong> Write DSL → run parser → compile/run JUnit → show pass/fail + one invalid DSL with your error message.</li>
+  </ul>
+
+  <h2>📊 Marking Rubric (100 marks)</h2>
+  <table>
+    <tbody><tr>
+      <th>Criteria</th><th>Marks</th>
+      <th>Poor (0–35%)</th><th>Below Avg (36–45%)</th><th>Average (46–65%)</th>
+      <th>Good (66–75%)</th><th>Very Good (76–100%)</th>
+    </tr>
+    <tr>
+      <td>Language Design Fidelity</td><td>25</td>
+      <td>Deviates; missing constructs</td>
+      <td>Partial; unclear semantics</td>
+      <td>Implements required constructs</td>
+      <td>Edge cases handled; clear docs</td>
+      <td>Robust and well-documented behavior</td>
+    </tr>
+    <tr>
+      <td>Scanner &amp; Parser Quality</td><td>30</td>
+      <td>Unstable; crashes</td>
+      <td>Parses only trivial inputs</td>
+      <td>Parses examples reliably</td>
+      <td>Good diagnostics; recovery</td>
+      <td>Clean structure; maintainable; tests</td>
+    </tr>
+    <tr>
+      <td>Code Generation (JUnit)</td><td>30</td>
+      <td>Uncompilable / wrong</td>
+      <td>Compiles with logic flaws</td>
+      <td>Runs GET/POST with asserts</td>
+      <td>Handles headers/body/vars properly</td>
+      <td>Idiomatic; reusable helpers; clean</td>
+    </tr>
+    <tr>
+      <td>Demo &amp; Examples</td><td>15</td>
+      <td>Missing/unclear</td>
+      <td>Partial pipeline</td>
+      <td>End-to-end shown</td>
+      <td>Clear pass/fail + invalid case</td>
+      <td>Polished; reproducible README</td>
+    </tr>
+  </tbody></table>
+
+  <h2>🗓️ Suggested 3-Week Plan</h2>
+  <ul class="tight">
+    <li><strong>Week 1:</strong> Tokens &amp; scanner → parse blocks → AST model.</li>
+    <li><strong>Week 2:</strong> Implement statements; var substitution; generate JUnit template; compile.</li>
+    <li><strong>Week 3:</strong> Robust errors; finalize codegen; examples; demo recording.</li>
+  </ul>
+
+  <h2>⚠️ Academic Integrity &amp; AI Use</h2>
+  <ul class="tight">
+    <li>AI tools may be used to learn concepts, but <strong>not</strong> to generate your lexer/parser or the generated JUnit code.</li>
+    <li>All work must be your own. Similarity checks apply.</li>
+    <li>When in doubt, cite references and ask questions early.</li>
+  </ul>
+
+</div>
+
+
+</body></html>
