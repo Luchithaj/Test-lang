@@ -1,5 +1,3 @@
-package parser;
-
 import ast.*;
 import java.io.*;
 import java.util.*;
