@@ -1,0 +1,23 @@
+#compile the scanner
+java -jar lib/jflex-full-1.9.1.jar src/TestLang.flex
+
+#compile the parser
+java -jar lib/java-cup-11b.jar -destdir src -parser TestLangParser -symbols sym src/TestLang.cup
+
+#compile ast objects first
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/ast/*.java
+
+#then compile the code generator
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/CodeGenerator.java
+
+#then compile the Main
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/Main.java
+
+#use our compiler to compile the .test file
+java -cp "lib/java-cup-11b-runtime.jar:build" Main examples/example.test
+
+#compile the GeneratedTests
+javac -cp "lib/junit-platform-console-standalone-1.9.3.jar:." GeneratedTests.java
+
+#run the tests against our backend
+java -jar lib/junit-platform-console-standalone-1.9.3.jar --class-path . --scan-class-path
