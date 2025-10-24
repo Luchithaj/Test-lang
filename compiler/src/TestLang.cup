@@ -36,6 +36,8 @@ non terminal List<Assertion> assertions;
 non terminal Assertion assertion;
 non terminal String pathOrUrl;
 non terminal String value;
+non terminal String baseUrl;
+non terminal String body;
 
 // Grammar rules
 testFile ::= configBlock:config variables:vars testBlocks:tests
@@ -212,14 +214,3 @@ pathOrUrl ::= STRING:path
               RESULT = path;
             :}
            ;
-
-// Helper class for request blocks
-class RequestBlock {
-    public List<Header> headers;
-    public String body;
-    
-    public RequestBlock(List<Header> headers, String body) {
-        this.headers = headers != null ? headers : new ArrayList<Header>();
-        this.body = body;
-    }
-}
