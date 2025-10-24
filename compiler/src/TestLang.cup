@@ -122,26 +122,26 @@ statement ::=
     GET STRING:path SEMICOLON
     {: 
       //System.out.println("  📡 GET " + path);
-      RESULT = new Request(Request.HttpMethod.GET, path);
+      RESULT = new Request(HttpMethod.GET, path);
     :}
   | POST STRING:path LBRACE request_body:body RBRACE SEMICOLON
     {: 
       //System.out.println("  📡 POST " + path);
-      Request req = new Request(Request.HttpMethod.POST, path);
+      Request req = new Request(HttpMethod.POST, path);
       if (body != null) req.setBody(body);
       RESULT = req;
     :}
   | PUT STRING:path LBRACE request_body:body RBRACE SEMICOLON
     {: 
       //System.out.println("  📡 PUT " + path);
-      Request req = new Request(Request.HttpMethod.PUT, path);
+      Request req = new Request(HttpMethod.PUT, path);
       if (body != null) req.setBody(body);
       RESULT = req;
     :}
   | DELETE STRING:path SEMICOLON
     {: 
       //System.out.println("  📡 DELETE " + path);
-      RESULT = new Request(Request.HttpMethod.DELETE, path);
+      RESULT = new Request(HttpMethod.DELETE, path);
     :}
   | assertion:a
     {: 

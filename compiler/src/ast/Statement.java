@@ -1,5 +1,6 @@
 package ast;
 
-public abstract class Statement {
-    // Base class for all statements
+// Marker interface for anything that can appear in a test block
+public interface Statement {
+    // Could add common methods here if needed
 }

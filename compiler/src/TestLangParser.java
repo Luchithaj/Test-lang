@@ -395,7 +395,7 @@ class CUP$TestLangParser$actions {
 		String path = (String)((java_cup.runtime.Symbol) CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-1)).value;
 		 
       //System.out.println("  📡 GET " + path);
-      RESULT = new Request(Request.HttpMethod.GET, path);
+      RESULT = new Request(HttpMethod.GET, path);
     
               CUP$TestLangParser$result = parser.getSymbolFactory().newSymbol("statement",5, ((java_cup.runtime.Symbol)CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-2)), ((java_cup.runtime.Symbol)CUP$TestLangParser$stack.peek()), RESULT);
             }
@@ -413,7 +413,7 @@ class CUP$TestLangParser$actions {
 		String body = (String)((java_cup.runtime.Symbol) CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-2)).value;
 		 
       //System.out.println("  📡 POST " + path);
-      Request req = new Request(Request.HttpMethod.POST, path);
+      Request req = new Request(HttpMethod.POST, path);
       if (body != null) req.setBody(body);
       RESULT = req;
     
@@ -433,7 +433,7 @@ class CUP$TestLangParser$actions {
 		String body = (String)((java_cup.runtime.Symbol) CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-2)).value;
 		 
       //System.out.println("  📡 PUT " + path);
-      Request req = new Request(Request.HttpMethod.PUT, path);
+      Request req = new Request(HttpMethod.PUT, path);
       if (body != null) req.setBody(body);
       RESULT = req;
     
@@ -450,7 +450,7 @@ class CUP$TestLangParser$actions {
 		String path = (String)((java_cup.runtime.Symbol) CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-1)).value;
 		 
       //System.out.println("  📡 DELETE " + path);
-      RESULT = new Request(Request.HttpMethod.DELETE, path);
+      RESULT = new Request(HttpMethod.DELETE, path);
     
               CUP$TestLangParser$result = parser.getSymbolFactory().newSymbol("statement",5, ((java_cup.runtime.Symbol)CUP$TestLangParser$stack.elementAt(CUP$TestLangParser$top-2)), ((java_cup.runtime.Symbol)CUP$TestLangParser$stack.peek()), RESULT);
             }

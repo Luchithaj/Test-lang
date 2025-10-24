@@ -149,7 +149,10 @@ public class CodeGenerator {
         output.append("    for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());\n");
         output.append("    b.header(\"Accept\", \"application/json\");\n");
 
-        // TODO: Add request-specific headers (if your AST supports them)
+        // Add request-specific headers if any
+        for (Map.Entry<String, String> header : req.getHeaders().entrySet()) {
+            output.append("    b.header(\"" + escapeJava(header.getKey()) + "\", \"" + escapeJava(header.getValue()) + "\");\n");
+        }
 
         // Send the request
         output.append("    HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));\n");

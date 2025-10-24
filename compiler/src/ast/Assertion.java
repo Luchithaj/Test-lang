@@ -1,74 +1,58 @@
 package ast;
 
-public class Assertion extends Statement {
-    public enum AssertionType {
-        STATUS, BODY_CONTAINS, HEADER_EQUALS, HEADER_CONTAINS
+public class Assertion implements Statement {
+    public enum Type {
+        STATUS,              //expect status=200
+        HEADER_EQUALS,       //expect header "Content-Type" = "application/json"
+        HEADER_CONTAINS,     //expect header "Content-Type" contains "application/json"
+        BODY_CONTAINS        //expect body contains "text"
     }
-
-    private AssertionType type;
-    private int statusCode;
-    private String headerName;
-    private String expectedValue;
-
-    private Assertion(AssertionType type) {
-        this.type = type;
-    }
-
+    
+    private Type type;
+    private Integer statusCode;      //for STATUS
+    private String headerName;       //for HEADER_*
+    private String expectedValue;    //for equals/contains
+    
+    //Constructor for STATUS assertion
     public static Assertion status(int code) {
-        Assertion a = new Assertion(AssertionType.STATUS);
+        Assertion a = new Assertion();
+        a.type = Type.STATUS;
         a.statusCode = code;
         return a;
     }
-
-    public static Assertion bodyContains(String text) {
-        Assertion a = new Assertion(AssertionType.BODY_CONTAINS);
-        a.expectedValue = text;
-        return a;
-    }
-
+    
+    //Constructor for HEADER_EQUALS
     public static Assertion headerEquals(String name, String value) {
-        Assertion a = new Assertion(AssertionType.HEADER_EQUALS);
+        Assertion a = new Assertion();
+        a.type = Type.HEADER_EQUALS;
         a.headerName = name;
         a.expectedValue = value;
         return a;
     }
-
-    public static Assertion headerContains(String name, String substr) {
-        Assertion a = new Assertion(AssertionType.HEADER_CONTAINS);
+    
+    //Constructor for HEADER_CONTAINS
+    public static Assertion headerContains(String name, String substring) {
+        Assertion a = new Assertion();
+        a.type = Type.HEADER_CONTAINS;
         a.headerName = name;
-        a.expectedValue = substr;
+        a.expectedValue = substring;
         return a;
     }
-
-    public AssertionType getType() {
-        return type;
+    
+    //Constructor for BODY_CONTAINS
+    public static Assertion bodyContains(String substring) {
+        Assertion a = new Assertion();
+        a.type = Type.BODY_CONTAINS;
+        a.expectedValue = substring;
+        return a;
     }
-
-    public int getStatusCode() {
-        return statusCode;
-    }
-
-    public String getHeaderName() {
-        return headerName;
-    }
-
-    public String getExpectedValue() {
-        return expectedValue;
-    }
-
-    @Override
-    public String toString() {
-        switch (type) {
-            case STATUS:
-                return "Assertion{type=STATUS, code=" + statusCode + "}";
-            case BODY_CONTAINS:
-                return "Assertion{type=BODY_CONTAINS, text='" + expectedValue + "'}";
-            case HEADER_EQUALS:
-                return "Assertion{type=HEADER_EQUALS, header='" + headerName + "', value='" + expectedValue + "'}";
-            case HEADER_CONTAINS:
-                return "Assertion{type=HEADER_CONTAINS, header='" + headerName + "', substr='" + expectedValue + "'}";
-            default:
-                return "Assertion{type=" + type + "}";
-        }
-    }
+    
+    //Private constructor - use only the factory methods in here
+    private Assertion() {}
+    
+    //Getters
+    public Type getType() { return type; }
+    public Integer getStatusCode() { return statusCode; }
+    public String getHeaderName() { return headerName; }
+    public String getExpectedValue() { return expectedValue; }
 }
