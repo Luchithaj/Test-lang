@@ -1,17 +1,41 @@
+import java.io.*;
+import java_cup.runtime.*;
 import ast.*;
 
 public class Main {
-    public static void main(String[] args) throws Exception {
-        if (args.length == 0) {
-            System.err.println("Usage: java Main <input.test>");
+    public static void main(String[] args) {
+        //System.out.println("🚀 Starting TestLang++ Parser Test\n");
+        
+        try {
+            String filename = args.length > 0 ? args[0] : "examples/example.test";
+            
+            FileReader fileReader = new FileReader(filename);
+            TestLangScanner scanner = new TestLangScanner(fileReader);
+            TestLangParser parser = new TestLangParser(scanner);
+
+            Symbol result = parser.parse();
+            Program program = parser.getProgram();
+            
+            System.out.println("\n✅ Parsing completed successfully!");
+
+            //code generation
+            CodeGenerator generator = new CodeGenerator();
+            String javaCode = generator.generate(program);
+
+            // Write to a new file - GeneratedTests.java
+            try (FileWriter writer = new FileWriter("GeneratedTests.java")) {
+                writer.write(javaCode);
+            }
+
+            System.out.println("✅ Generated GeneratedTests.java");
+            
+        } catch (FileNotFoundException e) {
+            System.err.println("❌ File not found: " + e.getMessage());
+            System.exit(1);
+        } catch (Exception e) {
+            System.err.println("❌ Error: " + e.getMessage());
+            e.printStackTrace();
             System.exit(1);
         }
-        
-        StandaloneLexer lexer = new StandaloneLexer(new java.io.FileReader(args[0]));
-        TestLangParser parser = new TestLangParser(lexer);
-        TestFile result = parser.parse();
-        
-        System.out.println("Parsing complete. Generating JUnit code...");
-        CodeGenerator.generate(result);
     }
 }

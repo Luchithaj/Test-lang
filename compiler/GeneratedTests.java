@@ -6,57 +6,76 @@ import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class GeneratedTests {
-  static String BASE = "http://localhost:8080";
+  static String BASE = "";
   static Map<String,String> DEFAULT_HEADERS = new HashMap<>();
   static HttpClient client;
 
   @BeforeAll
   static void setup() {
-    client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-    DEFAULT_HEADERS.put("Content-Type","application/json");
+    client = HttpClient.newBuilder()
+      .version(HttpClient.Version.HTTP_1_1)
+      .connectTimeout(Duration.ofSeconds(5))
+      .build();
+    BASE = "http://localhost:8080";
+    DEFAULT_HEADERS.put("Content-Type", "application/json");
   }
 
   @Test
   void test_Login() throws Exception {
+    System.out.println("--> POST " + BASE + "/api/login");
     HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/login"))
       .timeout(Duration.ofSeconds(10))
       .POST(HttpRequest.BodyPublishers.ofString("{ \"username\": \"admin\", \"password\": \"1234\" }"));
+    System.out.println("    body=" + "{ \"username\": \"admin\", \"password\": \"1234\" }");
     for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
+    b.header("Accept", "application/json");
     HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    System.out.println("<-- status=" + resp.statusCode());
+    System.out.println(resp.body());
 
-    assertEquals(200, resp.statusCode(), "Status code should be 200");
-    assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"), "Header Content-Type should contain json");
-    assertTrue(resp.body().contains("\"token\":"), "Body should contain \"token\":");
+    assertEquals(200, resp.statusCode());
+    assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"));
+    String _bodyNoWs = resp.body().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "");
+    assertTrue(_bodyNoWs.contains("\"token\":"));
   }
 
   @Test
   void test_GetUser() throws Exception {
+    System.out.println("--> GET " + BASE + "/api/users/42");
     HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users/42"))
       .timeout(Duration.ofSeconds(10))
       .GET();
     for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
+    b.header("Accept", "application/json");
     HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    System.out.println("<-- status=" + resp.statusCode());
+    System.out.println(resp.body());
 
-    assertEquals(200, resp.statusCode(), "Status code should be 200");
-    assertTrue(resp.body().contains("\"id\":42"), "Body should contain \"id\":42");
+    assertEquals(200, resp.statusCode());
+    String _bodyNoWs = resp.body().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "");
+    assertTrue(_bodyNoWs.contains("\"id\":42"));
   }
 
   @Test
   void test_UpdateUser() throws Exception {
+    System.out.println("--> PUT " + BASE + "/api/users/42");
     HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/users/42"))
       .timeout(Duration.ofSeconds(10))
       .PUT(HttpRequest.BodyPublishers.ofString("{ \"role\": \"ADMIN\" }"));
+    System.out.println("    body=" + "{ \"role\": \"ADMIN\" }");
     for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
-    b.header("Content-Type", "application/json");
+    b.header("Accept", "application/json");
     HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    System.out.println("<-- status=" + resp.statusCode());
+    System.out.println(resp.body());
 
-    assertEquals(200, resp.statusCode(), "Status code should be 200");
-    assertEquals("TestLangDemo", resp.headers().firstValue("X-App").orElse(""), "Header X-App should equal TestLangDemo");
-    assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"), "Header Content-Type should contain json");
-    assertTrue(resp.body().contains("\"updated\":true"), "Body should contain \"updated\":true");
-    assertTrue(resp.body().contains("\"role\":\"ADMIN\""), "Body should contain \"role\":\"ADMIN\"");
+    assertEquals(200, resp.statusCode());
+    assertEquals("TestLangDemo", resp.headers().firstValue("X-App").orElse(""));
+    assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"));
+    String _bodyNoWs = resp.body().replace(" ", "").replace("\n", "").replace("\r", "").replace("\t", "");
+    assertTrue(_bodyNoWs.contains("\"updated\":true"));
+    assertTrue(_bodyNoWs.contains("\"role\":\"ADMIN\""));
   }
 
 }

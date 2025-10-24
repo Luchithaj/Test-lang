@@ -16,7 +16,7 @@ echo ""
 
 # Generate tests
 echo "2. Generating tests from examples/example.test..."
-java -cp build Main examples/example.test
+java -cp "build:lib/java-cup-11b-runtime.jar" Main examples/example.test
 if [ $? -ne 0 ]; then
     echo "Test generation failed!"
     exit 1
