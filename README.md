@@ -1,169 +1,275 @@
-# TestLang++ - HTTP API Testing DSL
+# TestLang++: A Domain Specific Language for HTTP API Testing
 
+## 📋 Project Overview
 
-A Domain Specific Language (DSL) for HTTP API testing that compiles to JUnit 5 tests. Built for SE2062 - TestLang++ (Java) - Backend API Testing DSL assignment.
+TestLang++ is a sophisticated Domain Specific Language (DSL) compiler that transforms high-level testing specifications into executable JUnit 5 tests for HTTP API validation. Developed as part of SE2062 - TestLang++ (Java) - Backend API Testing DSL, this project bridges the gap between human-readable test definitions and robust, automated API testing.
 
-## Project Structure
+## 🎯 The Problem
+
+Traditional API testing often involves:
+
+- Verbose, repetitive test code
+- Complex setup and configuration
+- Manual assertion writing
+- Difficult maintenance as APIs evolve
+
+## 💡 The Solution
+
+TestLang++ provides:
+
+- Concise, readable syntax for defining API tests
+- Automatic compilation to JUnit 5 with Java HttpClient
+- Reusable configurations and variables
+- Comprehensive assertion capabilities
+- Seamless integration with existing Java ecosystems
+
+## 🏗️ Architectural Design
+
+### Compiler Pipeline
 
 ```
-Test-lang/
-├── compiler/                    # The main compiler code
-│   ├── src/                    # Java source files
-│   │   ├── ast/               # AST classes for parsing
-│   │   ├── CodeGenerator.java # Generates JUnit code
-│   │   ├── Main.java          # Entry point
-│   │   ├── TestLang.flex      # JFlex lexer specification
-│   │   ├── TestLang.cup       # CUP parser specification
-│   │   └── TestLangParser.java # Generated parser
-│   ├── lib/                   # JAR dependencies (JFlex, CUP, JUnit)
-│   ├── scripts/               # Build scripts
-│   ├── examples/              # Example .test files
-│   └── GeneratedTests.java    # Generated JUnit test output
-├── backend/                   # Spring Boot app for testing
-└── build.sh                   # Main build script
+DSL Input (.test) 
+    → [JFlex Lexer] 
+    → [CUP Parser] 
+    → [AST Generation] 
+    → [Code Generator] 
+    → JUnit 5 Output (.java)
 ```
 
-## Quick Start
+### Core Components
 
-### 1. Build Everything
-```bash
-./build.sh
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Lexer | JFlex | Tokenizes input stream into syntactic elements |
+| Parser | CUP | Constructs parse tree from token stream |
+| AST | Custom Java Classes | Represents program structure semantically |
+| CodeGen | Java Template Engine | Generates executable JUnit 5 tests |
+
+### Project Structure
+
+```
+TestLang++/
+├── src/
+│   ├── ast/                 # Abstract Syntax Tree classes
+│   │   ├── Program.java     # Root AST node
+│   │   ├── Config.java      # Configuration block
+│   │   ├── Test.java        # Test case definition
+│   │   └── ...             # Other AST components
+│   ├── TestLang.flex        # JFlex lexer specification
+│   ├── TestLang.cup         # CUP parser grammar
+│   ├── CodeGenerator.java   # JUnit 5 code generation
+│   └── Main.java           # Compiler entry point
+├── examples/
+│   └── example.test        # DSL input examples
+├── lib/                    # Dependencies (JFlex, CUP, JUnit)
+├── backend/               # Spring Boot test server
+└── GeneratedTests.java    # Generated output
 ```
 
-### 2. Start the Backend
-In one terminal:
-```bash
-./run-backend.sh
-```
-The backend will start on `http://localhost:8080`
+## 📝 DSL Syntax Reference
 
-### 3. Run the Complete Pipeline
-In another terminal:
-```bash
-cd compiler && ./scripts/test-complete.sh
-```
+### Configuration Block
 
-This will:
-- Parse `examples/example.test`
-- Generate `GeneratedTests.java`
-- Compile the generated tests
-- Run the tests against the backend
-- Show pass/fail results
-
-## Manual Usage
-
-### Step 1: Build the Compiler
-```bash
-cd compiler
-./scripts/build.sh
-```
-
-### Step 2: Generate Tests from DSL
-```bash
-java -cp build Main examples/example.test
-```
-
-### Step 3: Compile Generated Tests
-```bash
-javac -cp ".:lib/junit-platform-console-standalone-1.9.3.jar" GeneratedTests.java
-```
-
-### Step 4: Run Tests
-```bash
-java -cp ".:lib/junit-platform-console-standalone-1.9.3.jar" org.junit.platform.console.ConsoleLauncher --class-path . --select-class GeneratedTests
-```
-
-## DSL Syntax Reference
-
-### File Structure
-```testlang
+```javascript
 config {
-  base_url = "http://localhost:8080";
-  header "Content-Type" = "application/json";
+    base_url = "http://localhost:8080";
+    header "Content-Type" = "application/json";
+    header "Authorization" = "Bearer token123";
+}
+```
+
+### Variable Declarations
+
+```javascript
+let username = "testuser";
+let userId = 42;
+let endpoint = "/api/users";
+```
+
+### Test Definitions
+
+```javascript
+test UserLoginTest {
+    POST "/api/login" {
+        body = "{ \"username\": \"$username\", \"password\": \"secret\" }";
+    };
+    expect status = 200;
+    expect header "Content-Type" contains "json";
+    expect body contains "\"token\":";
+}
+```
+
+### HTTP Methods & Assertions
+
+- **Requests**: `GET|POST|PUT|DELETE "path" { body = "json"; }`
+- **Status Assertions**: `expect status = 200;`
+- **Header Assertions**: `expect header "Key" contains "value";`
+- **Body Assertions**: `expect body contains "text";`
+
+## 🚀 Quick Start Guide
+
+### Prerequisites
+
+- Java 8 or higher
+- Spring Boot (for test backend)
+- Basic terminal/command line knowledge
+
+### Automated Build & Execution
+
+Make the build script executable:
+
+```bash
+chmod +x build-all.sh
+```
+
+Run the complete pipeline:
+
+```bash
+./build-all.sh
+```
+
+### Manual Build Process
+
+For educational purposes or debugging, here's the step-by-step compilation:
+
+**Generate Lexer:**
+
+```bash
+java -jar lib/jflex-full-1.9.1.jar src/TestLang.flex
+```
+
+**Generate Parser:**
+
+```bash
+java -jar lib/java-cup-11b.jar -destdir src -parser TestLangParser -symbols sym src/TestLang.cup
+```
+
+**Compile AST Classes:**
+
+```bash
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/ast/*.java
+```
+
+**Compile Code Generator:**
+
+```bash
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/CodeGenerator.java
+```
+
+**Compile Parser Components:**
+
+```bash
+javac -cp "lib/java-cup-11b-runtime.jar:src" -d build src/TestLangScanner.java src/TestLangParser.java src/sym.java
+```
+
+**Compile Main Class:**
+
+```bash
+javac -cp "lib/java-cup-11b-runtime.jar:build" -d build src/Main.java
+```
+
+**Run Compiler:**
+
+```bash
+java -cp "lib/java-cup-11b-runtime.jar:build" Main examples/example.test
+```
+
+### Testing the Generated Code
+
+**Start the Test Backend:**
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+**Compile Generated Tests:**
+
+```bash
+javac -cp "lib/junit-platform-console-standalone-1.9.3.jar" GeneratedTests.java
+```
+
+**Execute Tests:**
+
+```bash
+java -jar lib/junit-platform-console-standalone-1.9.3.jar --class-path . --scan-class-path
+```
+
+## 🔍 Example Workflow
+
+### Input DSL (example.test)
+
+```javascript
+config {
+    base_url = "http://localhost:8080";
+    header "Content-Type" = "application/json";
 }
 
 let user = "admin";
 let id = 42;
 
 test Login {
-  POST "/api/login" {
-    body = "{ \"username\": \"$user\", \"password\": \"1234\" }";
-  }
-  expect status = 200;
-  expect header "Content-Type" contains "json";
-  expect body contains "\"token\":";
+    POST "/api/login" {
+        body = "{ \"username\": \"$user\", \"password\": \"1234\" }";
+    };
+    expect status = 200;
+    expect header "Content-Type" contains "json";
+    expect body contains "\"token\":";
+}
+
+test GetUser {
+    GET "/api/users/$id";
+    expect status = 200;
+    expect body contains "\"id\":42";
 }
 ```
 
-### Supported Features
-- **Config Block**: Set base URL and default headers
-- **Variables**: Declare with `let name = value;`, use with `$name`
-- **HTTP Methods**: GET, POST, PUT, DELETE
-- **Request Bodies**: JSON strings for POST/PUT
-- **Headers**: Per-request and default headers
-- **Assertions**: Status codes, header values, body content
-- **Variable Substitution**: In URLs and request bodies
+### Generated JUnit 5 Output
 
-## Error Handling
+The compiler produces comprehensive JUnit 5 tests that:
 
-The parser provides meaningful error messages for invalid DSL syntax:
+- Handle HTTP connections with Java HttpClient
+- Manage headers and authentication
+- Execute assertions on status codes, headers, and response bodies
+- Provide detailed error reporting for test failures
 
-```bash
-# Invalid variable name
-let 2a = "x";
-# Error: Expected IDENTIFIER but found NUMBER (2) at line 7, column 5
+## 🎓 Educational Value
 
-# Invalid body type
-POST "/api/login" { body = 123; }
-# Error: Expected STRING but found NUMBER (123) at line 3, column 12
-```
+This project demonstrates several important software engineering concepts:
 
-## Implementation Details
+- **Compiler Design**: Lexical analysis, parsing, and code generation
+- **Domain Specific Languages**: Creating tailored languages for specific problem domains
+- **Abstract Syntax Trees**: Representing program structure
+- **API Testing Patterns**: Modern REST API validation techniques
+- **Build Automation**: Managing complex compilation pipelines
 
-### Parser Architecture
-- **Lexer**: JFlex-based tokenizer (`TestLang.flex`)
-- **Parser**: CUP-based grammar parser (`TestLang.cup`)
-- **AST**: Java classes representing parsed structure
-- **Code Generator**: Produces JUnit 5 test code
+## 🔧 Technical Details
 
-### Generated Code Structure
-```java
-@Test
-void test_Login() throws Exception {
-  HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(BASE + "/api/login"))
-    .timeout(Duration.ofSeconds(10))
-    .POST(HttpRequest.BodyPublishers.ofString("{ \"username\": \"admin\", \"password\": \"1234\" }"));
-  for (var e: DEFAULT_HEADERS.entrySet()) b.header(e.getKey(), e.getValue());
-  HttpResponse<String> resp = client.send(b.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+### Dependencies
 
-  assertEquals(200, resp.statusCode());
-  assertTrue(resp.headers().firstValue("Content-Type").orElse("").contains("json"));
-  assertTrue(resp.body().contains("\"token\":"));
-}
-```
+- **JFlex 1.9.1**: Lexical analyzer generator
+- **CUP 11b**: Parser generator for LALR grammars
+- **JUnit 5**: Modern testing framework
+- **Java HttpClient**: HTTP client API (Java 11+)
 
-## Requirements
+### Language Features
 
-- Java 11 or higher
-- Maven (for the backend)
-- JFlex and CUP (included in lib/)
+- **Strong Typing**: Compile-time validation of test structure
+- **Variable Interpolation**: Dynamic value substitution in requests
+- **Header Management**: Automatic header propagation across tests
+- **Comprehensive Assertions**: Multi-faceted response validation
 
-## Assignment Compliance
+## 📈 Future Enhancements
 
-This implementation fulfills all requirements for SE2062 - TestLang++ (Java) - Backend API Testing DSL:
+Potential extensions to TestLang++:
 
-✅ **Language Design Fidelity**: Implements the complete DSL specification  
-✅ **Scanner & Parser Quality**: Robust JFlex/CUP implementation with error handling  
-✅ **Code Generation**: Produces idiomatic JUnit 5 code with HttpClient  
-✅ **Demo & Examples**: Complete pipeline with working examples  
+- Support for GraphQL APIs
+- Database state validation
+- Performance testing directives
+- OAuth 2.0 flow testing
+- OpenAPI specification integration
+- Test data generation and factories
 
-### Features Implemented
-- Complete DSL parser with JFlex lexer and CUP parser
-- AST representation of parsed code
-- Variable substitution in URLs and request bodies
-- JUnit 5 code generation with HttpClient
-- Spring Boot backend for testing
-- Comprehensive error handling
-- All 3 required test cases (Login, GetUser, UpdateUser)
+## 🤝 Contributing
 
-The generated tests run successfully and show green checkmarks in JUnit's tree view.
+This project was developed as part of an academic assignment. For questions or contributions, please refer to the course guidelines and academic integrity policies.
