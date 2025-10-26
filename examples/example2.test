@@ -1,0 +1,35 @@
+config {
+  base_url = "http://localhost:8080";
+  header "Content-Type" = "application/json";
+}
+
+let postId = 10;
+let title = "Assignment Completed";
+let author = "IT23631724";
+
+test CreatePost {
+  POST "/api/posts" {
+    body = "{ \"title\": \"$title\", \"author\": \"$author\" }";
+  };
+  expect status = 201;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"title\":\"$title\"";
+  expect body contains "\"author\":\"$author\"";
+}
+
+test GetPost {
+  GET "/api/posts/$postId";
+  expect status = 200;
+  expect body contains "\"id\": $postId";
+  expect body contains "\"title\":";
+}
+
+test UpdatePost {
+  PUT "/api/posts/$postId" {
+    body = "{ \"title\": \"Updated Title\" }";
+  };
+  expect status = 200;
+  expect header "Content-Type" contains "json";
+  expect body contains "\"updated\": true";
+  expect body contains "\"title\":\"Updated Title\"";
+}
