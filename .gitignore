@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+target/
+*.jar
+*.class
+
+# IDE files
+.DS_Store
+.vscode/
+.idea/
+
+# Generated files
+GeneratedTests.java
+GeneratedTests.class
+
+# Maven
+backend/target/
